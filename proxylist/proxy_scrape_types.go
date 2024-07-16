@@ -1,4 +1,4 @@
-package proxy
+package proxylist
 
 import (
 	"encoding/json"

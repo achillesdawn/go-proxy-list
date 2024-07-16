@@ -6,11 +6,15 @@ import (
 )
 
 func main() {
-	proxies, err := proxylist.ProxyScrapeWorkingProxies()
+	proxyscrapeProxies, err := proxylist.ProxyScrapeWorkingProxies()
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println("working:", len(proxies))
+	fmt.Println("proxyscrape working:", len(proxyscrapeProxies))
+
+	geonodeProxies := proxylist.GeonodesWorkingProxies()
+
+	fmt.Println("geonodes working:", len(geonodeProxies))
 
 }
