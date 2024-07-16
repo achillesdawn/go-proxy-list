@@ -1,4 +1,4 @@
-module proxy-test
+module proxy-list
 
 go 1.22.4
 

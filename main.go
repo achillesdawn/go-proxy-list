@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"proxy-test/proxylist"
+	"proxy-list/proxylist"
 )
 
 func main() {
