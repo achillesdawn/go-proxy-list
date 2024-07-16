@@ -3,8 +3,9 @@ package proxy
 import (
 	"encoding/json"
 	"fmt"
-	"log/slog"
+	"net/http"
 	"net/url"
+	"sync"
 	"time"
 )
 
@@ -46,21 +47,28 @@ func socksUrl(protocol, ip, port string) string {
 	return fmt.Sprintf("%s://%s:%s", protocol, ip, port)
 }
 
+func (g *GeonodeProxy) createSocks5Client() *http.Client {
+	proxyUrl := socksUrl("socks5", g.IP, g.Port)
+	Url, err := url.Parse(proxyUrl)
+	if err != nil {
+		panic(err)
+	}
+	return createSocks5Client(Url)
+}
+
+func (g *GeonodeProxy) createSocks4Client() *http.Client {
+	proxyUrl := socksUrl("socks4", g.IP, g.Port)
+
+	return createSocks4Client(proxyUrl)
+}
+
 func (g *GeonodeProxy) TestProxy() (bool, error) {
 
 	// geonodes proxy has an array of protocols
 	for _, protocol := range g.Protocols {
 		if protocol == "socks5" {
 
-			proxyUrl := socksUrl(protocol, g.IP, g.Port)
-			slog.Info("testing", slog.String("url", proxyUrl))
-
-			Url, err := url.Parse(proxyUrl)
-			if err != nil {
-				panic(err)
-			}
-
-			client := createSocks5Client(Url)
+			client := g.createSocks5Client()
 
 			ok, err := testProxy(client, g.IP)
 			if err != nil {
@@ -72,10 +80,8 @@ func (g *GeonodeProxy) TestProxy() (bool, error) {
 			}
 
 		} else if protocol == "socks4" {
-			proxyUrl := socksUrl(protocol, g.IP, g.Port)
-			slog.Info("testing", slog.String("url", proxyUrl))
 
-			client := createSocks4Client(proxyUrl)
+			client := g.createSocks4Client()
 
 			ok, err := testProxy(client, g.IP)
 			if err != nil {
@@ -95,7 +101,7 @@ func urlForPage(page uint8) string {
 	return fmt.Sprintf("https://proxylist.geonode.com/api/proxy-list?lpage=%d&limit=500&sort_by=lastChecked&sort_type=desc", page)
 }
 
-func CheckGeoNodes() (map[string][]GeonodeProxy, error) {
+func checkGeoNodes() (map[string][]GeonodeProxy, error) {
 
 	var currentPage uint8 = 1
 	var count int = 0
@@ -138,4 +144,42 @@ func CheckGeoNodes() (map[string][]GeonodeProxy, error) {
 	}
 
 	return results, nil
+}
+
+func GeonodesWorkingProxies() []*GeonodeProxy {
+	proxies, err := checkGeoNodes()
+	if err != nil {
+		panic(err)
+	}
+
+	waitGroup := sync.WaitGroup{}
+
+	workingChan := make(chan *GeonodeProxy, 100)
+
+	for protocol, proxyList := range proxies {
+
+		if protocol == "socks5" || protocol == "socks4" {
+			for _, proxy := range proxyList {
+				waitGroup.Add(1)
+				go func() {
+					defer waitGroup.Done()
+					ok, _ := proxy.TestProxy()
+
+					if ok {
+						workingChan <- &proxy
+					}
+				}()
+			}
+		}
+	}
+
+	waitGroup.Wait()
+	close(workingChan)
+
+	working := make([]*GeonodeProxy, 0, 100)
+	for proxy := range workingChan {
+		working = append(working, proxy)
+	}
+	fmt.Println("working:", len(working))
+	return working
 }

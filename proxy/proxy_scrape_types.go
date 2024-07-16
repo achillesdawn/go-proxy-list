@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"net/url"
+	"sync"
 )
 
 type (
-	IpData struct {
+	ProxyScrapeIpData struct {
 		As            string  `json:"as,omitempty"`
 		Asname        string  `json:"asname,omitempty"`
 		City          string  `json:"city,omitempty"`
@@ -30,47 +32,60 @@ type (
 		Zip           string  `json:"zip,omitempty"`
 	}
 
-	Proxy struct {
-		Alive          bool    `json:"alive,omitempty"`
-		AliveSince     float64 `json:"alive_since,omitempty"`
-		Anonimity      string  `json:"anonimity,omitempty"`
-		AverageTimeout float32 `json:"average_timeout,omitempty"`
-		FirstSeen      float64 `json:"first_seen,omitempty"`
-		IpData         IpData  `json:"ip_data,omitempty"`
-		LastSeen       float64 `json:"last_seen,omitempty"`
-		Port           int     `json:"port,omitempty"`
-		Protocol       string  `json:"protocol,omitempty"`
-		Proxy          string  `json:"proxy,omitempty"`
-		Ssl            bool    `json:"ssl,omitempty"`
-		Timeout        float64 `json:"timeout,omitempty"`
-		TimesAlive     int     `json:"times_alive,omitempty"`
-		TimesDead      int     `json:"times_dead,omitempty"`
-		Uptime         float64 `json:"uptime,omitempty"`
-		Ip             string  `json:"ip,omitempty"`
+	ProxyScrapeProxy struct {
+		Alive          bool              `json:"alive,omitempty"`
+		AliveSince     float64           `json:"alive_since,omitempty"`
+		Anonimity      string            `json:"anonimity,omitempty"`
+		AverageTimeout float32           `json:"average_timeout,omitempty"`
+		FirstSeen      float64           `json:"first_seen,omitempty"`
+		IpData         ProxyScrapeIpData `json:"ip_data,omitempty"`
+		LastSeen       float64           `json:"last_seen,omitempty"`
+		Port           int               `json:"port,omitempty"`
+		Protocol       string            `json:"protocol,omitempty"`
+		Proxy          string            `json:"proxy,omitempty"`
+		Ssl            bool              `json:"ssl,omitempty"`
+		Timeout        float64           `json:"timeout,omitempty"`
+		TimesAlive     int               `json:"times_alive,omitempty"`
+		TimesDead      int               `json:"times_dead,omitempty"`
+		Uptime         float64           `json:"uptime,omitempty"`
+		Ip             string            `json:"ip,omitempty"`
 	}
 
-	ProxyResponse struct {
-		ShownRecords int     `json:"shown_records,omitempty"`
-		TotalRecords int     `json:"total_records,omitempty"`
-		Limit        int     `json:"limit,omitempty"`
-		Skip         int     `json:"skip,omitempty"`
-		Nextpage     bool    `json:"nextpage,omitempty"`
-		Proxies      []Proxy `json:"proxies,omitempty"`
+	ProxyScrapeResponse struct {
+		ShownRecords int                `json:"shown_records,omitempty"`
+		TotalRecords int                `json:"total_records,omitempty"`
+		Limit        int                `json:"limit,omitempty"`
+		Skip         int                `json:"skip,omitempty"`
+		Nextpage     bool               `json:"nextpage,omitempty"`
+		Proxies      []ProxyScrapeProxy `json:"proxies,omitempty"`
 	}
 )
 
-func (p *Proxy) TestProxy() (bool, error) {
-
-	slog.Info("testing", slog.String("url", p.Proxy))
-
-	proxyUrl, err := url.Parse(p.Proxy)
+func (p *ProxyScrapeProxy) CreateSocks5Client() *http.Client {
+	Url, err := url.Parse(p.Proxy)
 	if err != nil {
 		panic(err)
 	}
+	return createSocks5Client(Url)
+}
 
-	client := createSocks5Client(proxyUrl)
+func (p *ProxyScrapeProxy) CreateSocks4Client() *http.Client {
+	return createSocks4Client(p.Proxy)
+}
 
-	ok, err := testProxy(client, p.Ip)
+func (p *ProxyScrapeProxy) TestProxy() (bool, error) {
+
+	slog.Info("testing", slog.String("url", p.Proxy))
+
+	var client *http.Client
+
+	if p.Protocol == "socks4" {
+		client = p.CreateSocks4Client()
+	} else if p.Protocol == "socks5" {
+		client = p.CreateSocks5Client()
+	}
+
+	ok, _ := testProxy(client, p.Ip)
 
 	if ok {
 		return true, nil
@@ -79,7 +94,7 @@ func (p *Proxy) TestProxy() (bool, error) {
 	}
 }
 
-func ProxyScrape() (map[string][]*Proxy, error) {
+func getProxyScrapeData() (*ProxyScrapeResponse, error) {
 	targetUrl := "https://api.proxyscrape.com/v3/free-proxy-list/get?request=displayproxies&proxy_format=protocolipport&format=json"
 
 	bytesData, err := makeRequest(targetUrl)
@@ -87,50 +102,58 @@ func ProxyScrape() (map[string][]*Proxy, error) {
 		return nil, err
 	}
 
-	var data ProxyResponse
+	var data ProxyScrapeResponse
 	err = json.Unmarshal(bytesData, &data)
 	if err != nil {
 		return nil, err
 	}
 
 	fmt.Println("got", data.TotalRecords)
+	return &data, nil
+}
 
-	var counts = make(map[string][]*Proxy)
+func CheckProxyScrape() ([]*ProxyScrapeProxy, error) {
 
-	var discared = 0
+	data, err := getProxyScrapeData()
+	if err != nil {
+		panic(err)
+	}
+
+	var workingChan = make(chan *ProxyScrapeProxy, 100)
+	var discarded = 0
+
+	waitGroup := sync.WaitGroup{}
 
 	for _, proxy := range data.Proxies {
 
 		if !proxy.Ssl {
-			discared += 1
+			discarded += 1
 			continue
 		}
 
-		if proxy.Protocol == "socks5" {
-			ok, err := proxy.TestProxy()
-			if err != nil {
-				slog.Error(err.Error())
-				continue
-			}
+		if proxy.Protocol == "socks5" || proxy.Protocol == "socks4" {
 
-			if ok {
+			waitGroup.Add(1)
+			go func() {
+				defer waitGroup.Done()
 
-			}
+				ok, _ := proxy.TestProxy()
 
+				if ok {
+					workingChan <- &proxy
+				}
+			}()
 		}
-
-		value, exists := counts[proxy.Protocol]
-		if !exists {
-			value = make([]*Proxy, 0)
-		}
-		value = append(value, &proxy)
-		counts[proxy.Protocol] = value
 	}
 
-	for key, value := range counts {
-		fmt.Println(key, "count:", len(value))
+	waitGroup.Wait()
+	close(workingChan)
+
+	working := make([]*ProxyScrapeProxy, 0)
+
+	for item := range workingChan {
+		working = append(working, item)
 	}
 
-	fmt.Println("discarded", discared)
-	return counts, nil
+	return working, nil
 }
