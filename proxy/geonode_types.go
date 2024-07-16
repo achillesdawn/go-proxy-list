@@ -3,6 +3,8 @@ package proxy
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
+	"net/url"
 	"time"
 )
 
@@ -39,6 +41,55 @@ type (
 		Limit int            `json:"limit"`
 	}
 )
+
+func socksUrl(protocol, ip, port string) string {
+	return fmt.Sprintf("%s://%s:%s", protocol, ip, port)
+}
+
+func (g *GeonodeProxy) TestProxy() (bool, error) {
+
+	// geonodes proxy has an array of protocols
+	for _, protocol := range g.Protocols {
+		if protocol == "socks5" {
+
+			proxyUrl := socksUrl(protocol, g.IP, g.Port)
+			slog.Info("testing", slog.String("url", proxyUrl))
+
+			Url, err := url.Parse(proxyUrl)
+			if err != nil {
+				panic(err)
+			}
+
+			client := createSocks5Client(Url)
+
+			ok, err := testProxy(client, g.IP)
+			if err != nil {
+				return false, err
+			}
+
+			if ok {
+				return true, nil
+			}
+
+		} else if protocol == "socks4" {
+			proxyUrl := socksUrl(protocol, g.IP, g.Port)
+			slog.Info("testing", slog.String("url", proxyUrl))
+
+			client := createSocks4Client(proxyUrl)
+
+			ok, err := testProxy(client, g.IP)
+			if err != nil {
+				return false, err
+			}
+
+			if ok {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
+}
 
 func urlForPage(page uint8) string {
 	return fmt.Sprintf("https://proxylist.geonode.com/api/proxy-list?lpage=%d&limit=500&sort_by=lastChecked&sort_type=desc", page)

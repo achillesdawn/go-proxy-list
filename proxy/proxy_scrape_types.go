@@ -1,14 +1,10 @@
 package proxy
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 	"net/url"
-	"time"
 )
 
 type (
@@ -63,53 +59,38 @@ type (
 	}
 )
 
-func (p *Proxy) TestProxy() error {
+func (p *Proxy) TestProxy() (bool, error) {
 
 	slog.Info("testing", slog.String("url", p.Proxy))
 
-	proxuUrl, err := url.Parse(p.Proxy)
+	proxyUrl, err := url.Parse(p.Proxy)
 	if err != nil {
 		panic(err)
 	}
-	client := &http.Client{
-		Timeout: time.Millisecond * 10_000,
-		Transport: &http.Transport{
-			Proxy: http.ProxyURL(proxuUrl),
 
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		},
-	}
+	client := createSocks5Client(proxyUrl)
 
-	req, err := http.NewRequest(http.MethodGet, "https://httpbin.org/ip", nil)
-	if err != nil {
-		panic(err)
-	}
-	res, err := client.Do(req)
-	if err != nil {
-		slog.Error(err.Error())
-		return err
+	ok, err := testProxy(client, p.Ip)
 
+	if ok {
+		return true, nil
+	} else {
+		return false, nil
 	}
-
-	b, err := io.ReadAll(res.Body)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(string(b))
-	return nil
 }
 
-func ProxyScrape() {
+func ProxyScrape() (map[string][]*Proxy, error) {
 	targetUrl := "https://api.proxyscrape.com/v3/free-proxy-list/get?request=displayproxies&proxy_format=protocolipport&format=json"
 
 	bytesData, err := makeRequest(targetUrl)
+	if err != nil {
+		return nil, err
+	}
 
 	var data ProxyResponse
 	err = json.Unmarshal(bytesData, &data)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	fmt.Println("got", data.TotalRecords)
@@ -126,10 +107,14 @@ func ProxyScrape() {
 		}
 
 		if proxy.Protocol == "socks5" {
-			err := proxy.TestProxy()
+			ok, err := proxy.TestProxy()
 			if err != nil {
 				slog.Error(err.Error())
 				continue
+			}
+
+			if ok {
+
 			}
 
 		}
@@ -147,4 +132,5 @@ func ProxyScrape() {
 	}
 
 	fmt.Println("discarded", discared)
+	return counts, nil
 }
