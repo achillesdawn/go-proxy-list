@@ -1,4 +1,4 @@
-package proxytest
+package proxy
 
 import (
 	"crypto/tls"

@@ -1,9 +1,13 @@
-package proxytest
+package proxy
 
-import "time"
+import (
+	"encoding/json"
+	"fmt"
+	"time"
+)
 
-type GeonodeResponse struct {
-	Data []struct {
+type (
+	GeonodeProxy struct {
 		ID                 string    `json:"_id"`
 		IP                 string    `json:"ip"`
 		AnonymityLevel     string    `json:"anonymityLevel"`
@@ -26,14 +30,61 @@ type GeonodeResponse struct {
 		ResponseTime       int       `json:"responseTime"`
 		Region             any       `json:"region,omitempty"`
 		WorkingPercent     any       `json:"workingPercent,omitempty"`
-	} `json:"data"`
-	Total int `json:"total"`
-	Page  int `json:"page"`
-	Limit int `json:"limit"`
+	}
+
+	GeonodeResponse struct {
+		Data  []GeonodeProxy `json:"data"`
+		Total int            `json:"total"`
+		Page  int            `json:"page"`
+		Limit int            `json:"limit"`
+	}
+)
+
+func urlForPage(page uint8) string {
+	return fmt.Sprintf("https://proxylist.geonode.com/api/proxy-list?lpage=%d&limit=500&sort_by=lastChecked&sort_type=desc", page)
 }
 
-func CheckGeoNodes() {
-	endpoint := "https://proxylist.geonode.com/api/proxy-list?lpage=1&sort_by=lastChecked&sort_type=desc"
-	byteData, err := makeRequest(endpoint)
+func CheckGeoNodes() (map[string][]GeonodeProxy, error) {
 
+	var currentPage uint8 = 1
+	var count int = 0
+
+	results := make(map[string][]GeonodeProxy, 3)
+
+	for {
+		page := urlForPage(currentPage)
+		byteData, err := makeRequest(page)
+		if err != nil {
+			panic(err)
+		}
+
+		var data GeonodeResponse
+		err = json.Unmarshal(byteData, &data)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, proxy := range data.Data {
+
+			for _, protocol := range proxy.Protocols {
+				value, exists := results[protocol]
+
+				if !exists {
+					value = make([]GeonodeProxy, 0)
+				}
+
+				value = append(value, proxy)
+				results[protocol] = value
+			}
+		}
+
+		count += len(data.Data)
+
+		fmt.Println("count", count)
+		if count >= data.Total {
+			break
+		}
+	}
+
+	return results, nil
 }
