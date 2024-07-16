@@ -35,7 +35,7 @@ type (
 		WorkingPercent     any       `json:"workingPercent,omitempty"`
 	}
 
-	GeonodeResponse struct {
+	geonodeResponse struct {
 		Data  []GeonodeProxy `json:"data"`
 		Total int            `json:"total"`
 		Page  int            `json:"page"`
@@ -47,7 +47,7 @@ func socksUrl(protocol, ip, port string) string {
 	return fmt.Sprintf("%s://%s:%s", protocol, ip, port)
 }
 
-func (g *GeonodeProxy) createSocks5Client() *http.Client {
+func (g *GeonodeProxy) CreateSocks5Client() *http.Client {
 	proxyUrl := socksUrl("socks5", g.IP, g.Port)
 	Url, err := url.Parse(proxyUrl)
 	if err != nil {
@@ -56,7 +56,7 @@ func (g *GeonodeProxy) createSocks5Client() *http.Client {
 	return createSocks5Client(Url)
 }
 
-func (g *GeonodeProxy) createSocks4Client() *http.Client {
+func (g *GeonodeProxy) CreateSocks4Client() *http.Client {
 	proxyUrl := socksUrl("socks4", g.IP, g.Port)
 
 	return createSocks4Client(proxyUrl)
@@ -68,7 +68,7 @@ func (g *GeonodeProxy) TestProxy() (bool, error) {
 	for _, protocol := range g.Protocols {
 		if protocol == "socks5" {
 
-			client := g.createSocks5Client()
+			client := g.CreateSocks5Client()
 
 			ok, err := testProxy(client, g.IP)
 			if err != nil {
@@ -81,7 +81,7 @@ func (g *GeonodeProxy) TestProxy() (bool, error) {
 
 		} else if protocol == "socks4" {
 
-			client := g.createSocks4Client()
+			client := g.CreateSocks4Client()
 
 			ok, err := testProxy(client, g.IP)
 			if err != nil {
@@ -115,7 +115,7 @@ func checkGeoNodes() (map[string][]GeonodeProxy, error) {
 			panic(err)
 		}
 
-		var data GeonodeResponse
+		var data geonodeResponse
 		err = json.Unmarshal(byteData, &data)
 		if err != nil {
 			return nil, err

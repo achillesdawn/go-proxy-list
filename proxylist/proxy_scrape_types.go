@@ -10,7 +10,7 @@ import (
 )
 
 type (
-	ProxyScrapeIpData struct {
+	proxyScrapeIpData struct {
 		As            string  `json:"as,omitempty"`
 		Asname        string  `json:"asname,omitempty"`
 		City          string  `json:"city,omitempty"`
@@ -38,7 +38,7 @@ type (
 		Anonimity      string            `json:"anonimity,omitempty"`
 		AverageTimeout float32           `json:"average_timeout,omitempty"`
 		FirstSeen      float64           `json:"first_seen,omitempty"`
-		IpData         ProxyScrapeIpData `json:"ip_data,omitempty"`
+		IpData         proxyScrapeIpData `json:"ip_data,omitempty"`
 		LastSeen       float64           `json:"last_seen,omitempty"`
 		Port           int               `json:"port,omitempty"`
 		Protocol       string            `json:"protocol,omitempty"`
@@ -51,7 +51,7 @@ type (
 		Ip             string            `json:"ip,omitempty"`
 	}
 
-	ProxyScrapeResponse struct {
+	proxyScrapeResponse struct {
 		ShownRecords int                `json:"shown_records,omitempty"`
 		TotalRecords int                `json:"total_records,omitempty"`
 		Limit        int                `json:"limit,omitempty"`
@@ -94,7 +94,7 @@ func (p *ProxyScrapeProxy) TestProxy() (bool, error) {
 	}
 }
 
-func getProxyScrapeData() (*ProxyScrapeResponse, error) {
+func getProxyScrapeData() (*proxyScrapeResponse, error) {
 	targetUrl := "https://api.proxyscrape.com/v3/free-proxy-list/get?request=displayproxies&proxy_format=protocolipport&format=json"
 
 	bytesData, err := makeRequest(targetUrl)
@@ -102,7 +102,7 @@ func getProxyScrapeData() (*ProxyScrapeResponse, error) {
 		return nil, err
 	}
 
-	var data ProxyScrapeResponse
+	var data proxyScrapeResponse
 	err = json.Unmarshal(bytesData, &data)
 	if err != nil {
 		return nil, err
@@ -112,7 +112,7 @@ func getProxyScrapeData() (*ProxyScrapeResponse, error) {
 	return &data, nil
 }
 
-func CheckProxyScrape() ([]*ProxyScrapeProxy, error) {
+func ProxyScrapeWorkingProxies() ([]*ProxyScrapeProxy, error) {
 
 	data, err := getProxyScrapeData()
 	if err != nil {

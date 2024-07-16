@@ -1,4 +1,4 @@
-package proxy
+package proxylist
 
 import (
 	"bufio"
@@ -16,7 +16,7 @@ import (
 	"h12.io/socks"
 )
 
-type HttpbinIp struct {
+type httpbinIp struct {
 	Origin string `json:"origin,omitempty"`
 }
 
@@ -83,7 +83,7 @@ func testProxy(client *http.Client, ip string) (bool, error) {
 
 	fmt.Println(string(b))
 
-	var data HttpbinIp
+	var data httpbinIp
 	err = json.Unmarshal(b, &data)
 	if err != nil {
 		return false, err
