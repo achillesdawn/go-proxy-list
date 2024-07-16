@@ -1,7 +1,8 @@
-package main
+package proxytest
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -98,4 +99,53 @@ func (p *Proxy) TestProxy() error {
 	}
 	fmt.Println(string(b))
 	return nil
+}
+
+func ProxyScrape() {
+	targetUrl := "https://api.proxyscrape.com/v3/free-proxy-list/get?request=displayproxies&proxy_format=protocolipport&format=json"
+
+	bytesData, err := makeRequest(targetUrl)
+
+	var data ProxyResponse
+	err = json.Unmarshal(bytesData, &data)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("got", data.TotalRecords)
+
+	var counts = make(map[string][]*Proxy)
+
+	var discared = 0
+
+	for _, proxy := range data.Proxies {
+
+		if !proxy.Ssl {
+			discared += 1
+			continue
+		}
+
+		if proxy.Protocol == "socks5" {
+			err := proxy.TestProxy()
+			if err != nil {
+				slog.Error(err.Error())
+				continue
+			}
+
+		}
+
+		value, exists := counts[proxy.Protocol]
+		if !exists {
+			counts[proxy.Protocol] = make([]*Proxy, 0)
+			value = counts[proxy.Protocol]
+		}
+		value = append(value, &proxy)
+		counts[proxy.Protocol] = value
+	}
+
+	for key, value := range counts {
+		fmt.Println(key, "count:", len(value))
+	}
+
+	fmt.Println("discarded", discared)
 }
