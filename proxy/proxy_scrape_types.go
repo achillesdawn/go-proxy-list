@@ -136,8 +136,7 @@ func ProxyScrape() {
 
 		value, exists := counts[proxy.Protocol]
 		if !exists {
-			counts[proxy.Protocol] = make([]*Proxy, 0)
-			value = counts[proxy.Protocol]
+			value = make([]*Proxy, 0)
 		}
 		value = append(value, &proxy)
 		counts[proxy.Protocol] = value
