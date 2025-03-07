@@ -1,4 +1,4 @@
-package proxylist
+package proxyscrape
 
 import (
 	"encoding/json"
@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"proxy-list/proxylist/proxy"
 	"sync"
 )
 
@@ -61,16 +62,28 @@ type (
 	}
 )
 
+func (p *ProxyScrapeProxy) CreateClient() *http.Client {
+	var client *http.Client
+
+	if p.Protocol == proxy.ProtocolSocks4 {
+		client = p.CreateSocks4Client()
+	} else if p.Protocol == proxy.ProtocolSocks5 {
+		client = p.CreateSocks5Client()
+	}
+
+	return client
+}
+
 func (p *ProxyScrapeProxy) CreateSocks5Client() *http.Client {
 	Url, err := url.Parse(p.Proxy)
 	if err != nil {
 		panic(err)
 	}
-	return createSocks5Client(Url)
+	return proxy.Socks5Client(Url)
 }
 
 func (p *ProxyScrapeProxy) CreateSocks4Client() *http.Client {
-	return createSocks4Client(p.Proxy)
+	return proxy.Socks4Client(p.Proxy)
 }
 
 func (p *ProxyScrapeProxy) TestProxy() (bool, error) {
@@ -85,7 +98,7 @@ func (p *ProxyScrapeProxy) TestProxy() (bool, error) {
 		client = p.CreateSocks5Client()
 	}
 
-	ok, _ := testProxy(client, p.Ip)
+	ok, _ := proxy.TestProxy(client, p.Ip)
 
 	if ok {
 		return true, nil
@@ -97,7 +110,7 @@ func (p *ProxyScrapeProxy) TestProxy() (bool, error) {
 func getProxyScrapeData() (*proxyScrapeResponse, error) {
 	targetUrl := "https://api.proxyscrape.com/v3/free-proxy-list/get?request=displayproxies&proxy_format=protocolipport&format=json"
 
-	bytesData, err := makeRequest(targetUrl)
+	bytesData, err := proxy.Request(targetUrl)
 	if err != nil {
 		return nil, err
 	}
@@ -112,11 +125,11 @@ func getProxyScrapeData() (*proxyScrapeResponse, error) {
 	return &data, nil
 }
 
-func ProxyScrapeWorkingProxies() ([]*ProxyScrapeProxy, error) {
+func WorkingProxies() ([]*ProxyScrapeProxy, error) {
 
 	data, err := getProxyScrapeData()
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("could not get proxy data: %w", err)
 	}
 
 	var workingChan = make(chan *ProxyScrapeProxy, 100)
@@ -143,10 +156,13 @@ func ProxyScrapeWorkingProxies() ([]*ProxyScrapeProxy, error) {
 					workingChan <- &proxy
 				}
 			}()
+		} else {
+			fmt.Println(proxy.Protocol)
 		}
 	}
 
 	waitGroup.Wait()
+
 	close(workingChan)
 
 	working := make([]*ProxyScrapeProxy, 0)

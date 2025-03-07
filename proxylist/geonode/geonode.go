@@ -1,10 +1,11 @@
-package proxylist
+package geonode
 
 import (
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
+	"proxy-list/proxylist/proxy"
 	"sync"
 	"time"
 )
@@ -47,19 +48,34 @@ func socksUrl(protocol, ip, port string) string {
 	return fmt.Sprintf("%s://%s:%s", protocol, ip, port)
 }
 
+func (g *GeonodeProxy) CreateClient() (*http.Client, error) {
+
+	for _, protocol := range g.Protocols {
+
+		if protocol == proxy.ProtocolSocks4 {
+			return g.CreateSocks4Client(), nil
+		} else if protocol == proxy.ProtocolSocks5 {
+			return g.CreateSocks5Client(), nil
+		}
+	}
+
+	return nil, fmt.Errorf("no valid protocol found")
+}
+
 func (g *GeonodeProxy) CreateSocks5Client() *http.Client {
 	proxyUrl := socksUrl("socks5", g.IP, g.Port)
 	Url, err := url.Parse(proxyUrl)
 	if err != nil {
 		panic(err)
 	}
-	return createSocks5Client(Url)
+
+	return proxy.Socks5Client(Url)
 }
 
 func (g *GeonodeProxy) CreateSocks4Client() *http.Client {
 	proxyUrl := socksUrl("socks4", g.IP, g.Port)
 
-	return createSocks4Client(proxyUrl)
+	return proxy.Socks4Client(proxyUrl)
 }
 
 func (g *GeonodeProxy) TestProxy() (bool, error) {
@@ -68,9 +84,9 @@ func (g *GeonodeProxy) TestProxy() (bool, error) {
 	for _, protocol := range g.Protocols {
 		if protocol == "socks5" {
 
-			client := g.CreateSocks5Client()
+			c := g.CreateSocks5Client()
 
-			ok, err := testProxy(client, g.IP)
+			ok, err := proxy.TestProxy(c, g.IP)
 			if err != nil {
 				return false, err
 			}
@@ -81,9 +97,9 @@ func (g *GeonodeProxy) TestProxy() (bool, error) {
 
 		} else if protocol == "socks4" {
 
-			client := g.CreateSocks4Client()
+			c := g.CreateSocks4Client()
 
-			ok, err := testProxy(client, g.IP)
+			ok, err := proxy.TestProxy(c, g.IP)
 			if err != nil {
 				return false, err
 			}
@@ -110,15 +126,16 @@ func checkGeoNodes() (map[string][]GeonodeProxy, error) {
 
 	for {
 		page := urlForPage(currentPage)
-		byteData, err := makeRequest(page)
+		byteData, err := proxy.Request(page)
 		if err != nil {
-			panic(err)
+			return nil, fmt.Errorf("request error: %w", err)
 		}
 
 		var data geonodeResponse
+
 		err = json.Unmarshal(byteData, &data)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("could not unmarshal: %w", err)
 		}
 
 		for _, proxy := range data.Data {
@@ -146,10 +163,10 @@ func checkGeoNodes() (map[string][]GeonodeProxy, error) {
 	return results, nil
 }
 
-func GeonodesWorkingProxies() []*GeonodeProxy {
+func WorkingProxies() ([]*GeonodeProxy, error) {
 	proxies, err := checkGeoNodes()
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("checking error: %w", err)
 	}
 
 	waitGroup := sync.WaitGroup{}
@@ -160,11 +177,14 @@ func GeonodesWorkingProxies() []*GeonodeProxy {
 
 		if protocol == "socks5" || protocol == "socks4" {
 			for _, proxy := range proxyList {
-				waitGroup.Add(1)
-				go func() {
-					defer waitGroup.Done()
-					ok, _ := proxy.TestProxy()
 
+				waitGroup.Add(1)
+
+				go func() {
+
+					defer waitGroup.Done()
+
+					ok, _ := proxy.TestProxy()
 					if ok {
 						workingChan <- &proxy
 					}
@@ -174,12 +194,16 @@ func GeonodesWorkingProxies() []*GeonodeProxy {
 	}
 
 	waitGroup.Wait()
+
 	close(workingChan)
 
 	working := make([]*GeonodeProxy, 0, 100)
+
 	for proxy := range workingChan {
 		working = append(working, proxy)
 	}
+
 	fmt.Println("working:", len(working))
-	return working
+
+	return working, nil
 }
