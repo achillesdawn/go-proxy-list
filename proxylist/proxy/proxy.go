@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"crypto/tls"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -89,8 +88,6 @@ func TestProxy(client *http.Client, ip string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-
-	fmt.Println(string(b))
 
 	var data httpbinIp
 	err = json.Unmarshal(b, &data)

@@ -9,27 +9,33 @@ import (
 	"proxy-list/proxylist/geonode"
 	"proxy-list/proxylist/proxyscrape"
 	"time"
+
+	"golang.org/x/net/http2"
 )
+
+func withAnonHeaders(req *http.Request) {
+	anonHeaders := map[string]string{
+		"User-Agent":                "Mozilla/5.0 (X11; Linux x86_64; rv:135.0) Gecko/20100101 Firefox/135.0",
+		"Accept":                    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+		"Accept-Language":           "en-US,en;q=0.5",
+		"Sec-GPC":                   "1",
+		"Upgrade-Insecure-Requests": "1",
+		"Sec-Fetch-Dest":            "document",
+		"Sec-Fetch-Mode":            "navigate",
+		"Sec-Fetch-Site":            "cross-site",
+		"Priority":                  "u=0, i",
+		"Pragma":                    "no-cache",
+		"Cache-Control":             "no-cache",
+	}
+
+	for key, value := range anonHeaders {
+		req.Header.Add(key, value)
+	}
+}
 
 func TestUpwork(client *http.Client) error {
 
 	url := "https://www.upwork.com/nx/search/jobs/?q=golang"
-
-	headers := map[string]string{
-		"accept":                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-		"accept-language":           "en-US,en;q=0.9",
-		"cache-control":             "no-cache",
-		"pragma":                    "no-cache",
-		"priority":                  "u=0, i",
-		"sec-ch-ua":                 "\"Not)A;Brand\";v=\"99\", \"Google Chrome\";v=\"127\", \"Chromium\";v=\"127\"",
-		"sec-ch-ua-mobile":          "?0",
-		"sec-ch-ua-platform":        "\"Linux\"",
-		"sec-fetch-dest":            "document",
-		"sec-fetch-mode":            "navigate",
-		"sec-fetch-site":            "same-origin",
-		"sec-fetch-user":            "?1",
-		"upgrade-insecure-requests": "1",
-	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
@@ -40,13 +46,17 @@ func TestUpwork(client *http.Client) error {
 		panic(err)
 	}
 
-	for key, value := range headers {
-		req.Header.Add(key, value)
-	}
+	client.Transport = &http2.Transport{}
+
+	withAnonHeaders(req)
 
 	res, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("could not execute request: %w", err)
+	}
+
+	if res.StatusCode > 300 {
+		return fmt.Errorf("status: %s", res.Status)
 	}
 
 	defer res.Body.Close()
@@ -68,6 +78,7 @@ func main() {
 
 	for _, p := range proxies {
 		client := p.CreateClient()
+
 		err := TestUpwork(client)
 		if err != nil {
 			slog.Error("fail", "error", err)
