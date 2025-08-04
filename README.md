@@ -1,4 +1,5 @@
-# Simplified API to get and use free proxies from ProxyScrape and GeoNodes
+# proxy-list
+Simplified API to get and use free proxies from ProxyScrape and GeoNodes
 
 ## Getting started
 
