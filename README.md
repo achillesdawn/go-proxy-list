@@ -5,8 +5,9 @@ package main
 
 import (
 	"log/slog"
-	"proxy-list/proxies/geonode"
-	"proxy-list/proxies/proxyscrape"
+
+	"github.com/achillesdawn/proxy-list/proxies/geonode"
+	"github.com/achillesdawn/proxy-list/proxies/proxyscrape"
 )
 
 func main() {
@@ -45,4 +46,5 @@ func main() {
 
 	}
 }
+
 ```
