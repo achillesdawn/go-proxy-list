@@ -29,22 +29,26 @@ func (g *GeonodeProxy) CreateClient() (*http.Client, error) {
 }
 
 func pageURL(page uint8) string {
-	return fmt.Sprintf("https://proxylist.geonode.com/api/proxy-list?lpage=%d&limit=500&sort_by=lastChecked&sort_type=desc", page)
+	return fmt.Sprintf(
+		"https://proxylist.geonode.com/api/proxy-list?lpage=%d&limit=500&sort_by=lastChecked&sort_type=desc",
+		page,
+	)
 }
 
-func checkGeoNodes() (map[string][]GeonodeProxy, error) {
+func collectProxies() (map[string][]GeonodeProxy, error) {
 
 	var currentPage uint8 = 1
 	var count = 0
 
-	results := make(map[string][]GeonodeProxy)
+	// map of protocol to proxies that work for that protocol, so 3 is the expected capacity
+	results := make(map[string][]GeonodeProxy, 3)
 
 	for {
 		page := pageURL(currentPage)
 
 		byteData, err := common.Request(page)
 		if err != nil {
-			return nil, fmt.Errorf("request error: %w", err)
+			return nil, fmt.Errorf("geonodes request error: %w", err)
 		}
 
 		var data geonodeResponse
@@ -70,7 +74,7 @@ func checkGeoNodes() (map[string][]GeonodeProxy, error) {
 
 		count += len(data.Data)
 
-		fmt.Println("count", count)
+		slog.Info("geonode collecting", slog.Int("count", count))
 
 		if count >= data.Total {
 			break
@@ -81,16 +85,16 @@ func checkGeoNodes() (map[string][]GeonodeProxy, error) {
 }
 
 func WorkingProxies() ([]*GeonodeProxy, error) {
-	proxies, err := checkGeoNodes()
+	proxies, err := collectProxies()
 	if err != nil {
-		return nil, fmt.Errorf("checking error: %w", err)
+		return nil, fmt.Errorf("geonodes collect proxy: %w", err)
 	}
 
 	workingChan := make(chan *GeonodeProxy, 100)
+
 	waitGroup := sync.WaitGroup{}
 
 	for protocol, proxyList := range proxies {
-
 		if protocol == common.ProtocolSocks4 || protocol == common.ProtocolSocks5 {
 			for _, proxy := range proxyList {
 
@@ -121,7 +125,6 @@ func WorkingProxies() ([]*GeonodeProxy, error) {
 	slog.Info(
 		"working proxies",
 		slog.Int("len", len(working)),
-		slog.Int("total", len(proxies)),
 	)
 
 	return working, nil
