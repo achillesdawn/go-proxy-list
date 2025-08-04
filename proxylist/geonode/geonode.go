@@ -123,7 +123,7 @@ func WorkingProxies() ([]*GeonodeProxy, error) {
 	}
 
 	slog.Info(
-		"working proxies",
+		"geonodes working proxies",
 		slog.Int("len", len(working)),
 	)
 

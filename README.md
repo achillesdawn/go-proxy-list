@@ -1,23 +1,16 @@
+simplified API to get free proxies from ProxyScrape and GeoNodes
+
 ```go
-package main
+// get working proxies
+proxies, err := proxyscrape.WorkingProxies()
 
-import (
-	"fmt"
-	"proxy-list/proxylist"
-)
+for _, proxy := range proxies {
 
-func main() {
-	proxyscrapeProxies, err := proxylist.ProxyScrapeWorkingProxies()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println("proxyscrape working:", len(proxyscrapeProxies))
-
-	geonodeProxies := proxylist.GeonodesWorkingProxies()
-
-	fmt.Println("geonodes working:", len(geonodeProxies))
-
+	// client is of type *http.Client, already configured with proxy information
+	// it can be used simply to execute requests
+	// client.Do(request)
+	client := p.CreateClient()
 }
+	
 
 ```

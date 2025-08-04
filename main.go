@@ -9,11 +9,12 @@ import (
 func main() {
 	proxies, err := proxyscrape.WorkingProxies()
 	if err != nil {
-		panic(err)
+
 	}
 
 	for _, p := range proxies {
 		client := p.CreateClient()
+
 		_ = client
 	}
 
