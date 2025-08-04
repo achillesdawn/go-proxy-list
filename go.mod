@@ -1,4 +1,4 @@
-module proxy-list
+module github.com/achillesdawn/proxy-list
 
 go 1.24.5
 

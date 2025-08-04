@@ -5,7 +5,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"proxy-list/proxies/common"
+
+	"github.com/achillesdawn/proxy-list/proxies/common"
 )
 
 type (

@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"proxy-list/proxies/common"
 	"sync"
+
+	"github.com/achillesdawn/proxy-list/proxies/common"
 )
 
 func proxyScrapeJSON() (*proxyScrapeResponse, error) {

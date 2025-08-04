@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"proxy-list/proxies/common"
 	"sync"
+
+	"github.com/achillesdawn/proxy-list/proxies/common"
 )
 
 func socksUrl(protocol, ip, port string) string {

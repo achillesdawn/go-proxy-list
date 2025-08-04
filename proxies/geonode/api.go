@@ -3,8 +3,9 @@ package geonode
 import (
 	"net/http"
 	"net/url"
-	"proxy-list/proxies/common"
 	"time"
+
+	"github.com/achillesdawn/proxy-list/proxies/common"
 )
 
 type (
