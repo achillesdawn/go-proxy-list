@@ -1,4 +1,12 @@
-simplified API to get and use FREE proxies from ProxyScrape and GeoNodes
+# Simplified API to get and use FREE proxies from ProxyScrape and GeoNodes
+
+## Getting started
+
+```bash
+go get github.com/achillesdawn/proxy-list
+```
+
+## Usage
 
 ```go
 package main
