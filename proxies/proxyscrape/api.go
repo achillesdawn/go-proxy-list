@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"proxy-list/proxylist/common"
+	"proxy-list/proxies/common"
 )
 
 type (

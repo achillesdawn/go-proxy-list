@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"proxy-list/proxylist/common"
+	"proxy-list/proxies/common"
 	"sync"
 )
 

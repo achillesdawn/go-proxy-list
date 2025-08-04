@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"proxy-list/proxylist/common"
+	"proxy-list/proxies/common"
 	"sync"
 )
 
