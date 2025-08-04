@@ -3,7 +3,7 @@ package geonode
 import (
 	"net/http"
 	"net/url"
-	"proxy-list/proxylist/common"
+	"proxy-list/proxies/common"
 	"time"
 )
 
