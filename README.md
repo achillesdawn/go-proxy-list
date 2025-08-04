@@ -1,4 +1,4 @@
-simplified API to get free proxies from ProxyScrape and GeoNodes
+simplified API to get and use FREE proxies from ProxyScrape and GeoNodes
 
 ```go
 package main
