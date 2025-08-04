@@ -1,6 +1,10 @@
 simplified API to get free proxies from ProxyScrape and GeoNodes
 
 ```go
+package main
+
+import "proxy-list/proxylist/proxyscrape"
+
 // get working proxies
 proxies, err := proxyscrape.WorkingProxies()
 
