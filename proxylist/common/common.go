@@ -1,9 +1,10 @@
-package proxy
+package common
 
 import (
 	"bufio"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -51,8 +52,8 @@ type httpbinIp struct {
 	Origin string `json:"origin,omitempty"`
 }
 
-func Request(targetUrl string) ([]byte, error) {
-	req, err := http.NewRequest(http.MethodGet, targetUrl, nil)
+func Request(URL string) ([]byte, error) {
+	req, err := http.NewRequest(http.MethodGet, URL, nil)
 	if err != nil {
 		slog.Error(err.Error())
 		return nil, err
@@ -64,7 +65,14 @@ func Request(targetUrl string) ([]byte, error) {
 		return nil, err
 	}
 
-	reader := io.LimitReader(bufio.NewReader(res.Body), 984735+100_000)
+	slog.Info(
+		"request status",
+		slog.String("URL", URL),
+		slog.String("status", res.Status),
+	)
+
+	reader := io.LimitReader(bufio.NewReader(res.Body), 1024*1024*5)
+
 	b, err := io.ReadAll(reader)
 	if err != nil {
 		slog.Error(err.Error())
@@ -77,22 +85,24 @@ func Request(targetUrl string) ([]byte, error) {
 func TestProxy(client *http.Client, ip string) (bool, error) {
 	req, err := http.NewRequest(http.MethodGet, "https://httpbin.org/ip", nil)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("could not create test proxy request: %w", err)
 	}
+
 	res, err := client.Do(req)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("could not execute test proxy request: %w", err)
 	}
 
 	b, err := io.ReadAll(res.Body)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("could not read test response: %w", err)
 	}
 
 	var data httpbinIp
+
 	err = json.Unmarshal(b, &data)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("could not unmarshal httpbin response: %w", err)
 	}
 
 	if data.Origin == ip {

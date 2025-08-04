@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"proxy-list/proxylist/proxy"
+	"proxy-list/proxylist/common"
 )
 
 type (
@@ -64,9 +64,9 @@ func (p *ProxyScrapeProxy) CreateClient() *http.Client {
 	var client *http.Client
 
 	switch p.Protocol {
-	case proxy.ProtocolSocks4:
+	case common.ProtocolSocks4:
 		client = p.CreateSocks4Client()
-	case proxy.ProtocolSocks5:
+	case common.ProtocolSocks5:
 		client = p.CreateSocks5Client()
 	default:
 		panic(fmt.Sprintf("protocol not supported: %s", p.Protocol))
@@ -76,15 +76,15 @@ func (p *ProxyScrapeProxy) CreateClient() *http.Client {
 }
 
 func (p *ProxyScrapeProxy) CreateSocks5Client() *http.Client {
-	Url, err := url.Parse(p.Proxy)
+	URL, err := url.Parse(p.Proxy)
 	if err != nil {
 		panic(err)
 	}
-	return proxy.Socks5Client(Url)
+	return common.Socks5Client(URL)
 }
 
 func (p *ProxyScrapeProxy) CreateSocks4Client() *http.Client {
-	return proxy.Socks4Client(p.Proxy)
+	return common.Socks4Client(p.Proxy)
 }
 
 func (p *ProxyScrapeProxy) TestProxy() (bool, error) {
@@ -97,15 +97,15 @@ func (p *ProxyScrapeProxy) TestProxy() (bool, error) {
 	var client *http.Client
 
 	switch p.Protocol {
-	case proxy.ProtocolSocks4:
+	case common.ProtocolSocks4:
 		client = p.CreateSocks4Client()
-	case proxy.ProtocolSocks5:
+	case common.ProtocolSocks5:
 		client = p.CreateSocks5Client()
 	default:
 		return false, fmt.Errorf("expecting protocol either socks4 or socks5")
 	}
 
-	ok, _ := proxy.TestProxy(client, p.Ip)
+	ok, _ := common.TestProxy(client, p.Ip)
 
 	if ok {
 		return true, nil

@@ -3,8 +3,9 @@ package geonode
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
-	"proxy-list/proxylist/proxy"
+	"proxy-list/proxylist/common"
 	"sync"
 )
 
@@ -17,9 +18,9 @@ func (g *GeonodeProxy) CreateClient() (*http.Client, error) {
 	for _, protocol := range g.Protocols {
 
 		switch protocol {
-		case proxy.ProtocolSocks4:
+		case common.ProtocolSocks4:
 			return g.CreateSocks4Client(), nil
-		case proxy.ProtocolSocks5:
+		case common.ProtocolSocks5:
 			return g.CreateSocks5Client(), nil
 		}
 	}
@@ -27,20 +28,21 @@ func (g *GeonodeProxy) CreateClient() (*http.Client, error) {
 	return nil, fmt.Errorf("no valid protocol found")
 }
 
-func urlForPage(page uint8) string {
+func pageURL(page uint8) string {
 	return fmt.Sprintf("https://proxylist.geonode.com/api/proxy-list?lpage=%d&limit=500&sort_by=lastChecked&sort_type=desc", page)
 }
 
 func checkGeoNodes() (map[string][]GeonodeProxy, error) {
 
 	var currentPage uint8 = 1
-	var count int = 0
+	var count = 0
 
-	results := make(map[string][]GeonodeProxy, 3)
+	results := make(map[string][]GeonodeProxy)
 
 	for {
-		page := urlForPage(currentPage)
-		byteData, err := proxy.Request(page)
+		page := pageURL(currentPage)
+
+		byteData, err := common.Request(page)
 		if err != nil {
 			return nil, fmt.Errorf("request error: %w", err)
 		}
@@ -69,6 +71,7 @@ func checkGeoNodes() (map[string][]GeonodeProxy, error) {
 		count += len(data.Data)
 
 		fmt.Println("count", count)
+
 		if count >= data.Total {
 			break
 		}
@@ -83,19 +86,17 @@ func WorkingProxies() ([]*GeonodeProxy, error) {
 		return nil, fmt.Errorf("checking error: %w", err)
 	}
 
-	waitGroup := sync.WaitGroup{}
-
 	workingChan := make(chan *GeonodeProxy, 100)
+	waitGroup := sync.WaitGroup{}
 
 	for protocol, proxyList := range proxies {
 
-		if protocol == "socks5" || protocol == "socks4" {
+		if protocol == common.ProtocolSocks4 || protocol == common.ProtocolSocks5 {
 			for _, proxy := range proxyList {
 
 				waitGroup.Add(1)
 
 				go func() {
-
 					defer waitGroup.Done()
 
 					ok, _ := proxy.TestProxy()
@@ -117,7 +118,11 @@ func WorkingProxies() ([]*GeonodeProxy, error) {
 		working = append(working, proxy)
 	}
 
-	fmt.Println("working:", len(working))
+	slog.Info(
+		"working proxies",
+		slog.Int("len", len(working)),
+		slog.Int("total", len(proxies)),
+	)
 
 	return working, nil
 }

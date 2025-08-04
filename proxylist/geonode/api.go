@@ -3,7 +3,7 @@ package geonode
 import (
 	"net/http"
 	"net/url"
-	"proxy-list/proxylist/proxy"
+	"proxy-list/proxylist/common"
 	"time"
 )
 
@@ -42,19 +42,20 @@ type (
 )
 
 func (g *GeonodeProxy) CreateSocks5Client() *http.Client {
-	proxyUrl := socksUrl(proxy.ProtocolSocks5, g.IP, g.Port)
-	Url, err := url.Parse(proxyUrl)
+	proxyUrl := socksUrl(common.ProtocolSocks5, g.IP, g.Port)
+
+	URL, err := url.Parse(proxyUrl)
 	if err != nil {
 		panic(err)
 	}
 
-	return proxy.Socks5Client(Url)
+	return common.Socks5Client(URL)
 }
 
 func (g *GeonodeProxy) CreateSocks4Client() *http.Client {
-	proxyUrl := socksUrl(proxy.ProtocolSocks4, g.IP, g.Port)
+	proxyUrl := socksUrl(common.ProtocolSocks4, g.IP, g.Port)
 
-	return proxy.Socks4Client(proxyUrl)
+	return common.Socks4Client(proxyUrl)
 }
 
 func (g *GeonodeProxy) TestProxy() (bool, error) {
@@ -62,11 +63,10 @@ func (g *GeonodeProxy) TestProxy() (bool, error) {
 	// geonodes proxy has an array of protocols
 	for _, protocol := range g.Protocols {
 		switch protocol {
-		case proxy.ProtocolSocks5:
-
+		case common.ProtocolSocks5:
 			c := g.CreateSocks5Client()
 
-			ok, err := proxy.TestProxy(c, g.IP)
+			ok, err := common.TestProxy(c, g.IP)
 			if err != nil {
 				return false, err
 			}
@@ -75,11 +75,10 @@ func (g *GeonodeProxy) TestProxy() (bool, error) {
 				return true, nil
 			}
 
-		case proxy.ProtocolSocks4:
-
+		case common.ProtocolSocks4:
 			c := g.CreateSocks4Client()
 
-			ok, err := proxy.TestProxy(c, g.IP)
+			ok, err := common.TestProxy(c, g.IP)
 			if err != nil {
 				return false, err
 			}

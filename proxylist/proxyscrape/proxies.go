@@ -4,37 +4,42 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"proxy-list/proxylist/proxy"
+	"proxy-list/proxylist/common"
 	"sync"
 )
 
-func getProxyScrapeData() (*proxyScrapeResponse, error) {
-	targetUrl := "https://api.proxyscrape.com/v3/free-proxy-list/get?request=displayproxies&proxy_format=protocolipport&format=json"
+func proxyScrapeJSON() (*proxyScrapeResponse, error) {
+	targetURL := "https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=protocolipport&format=json"
 
-	bytesData, err := proxy.Request(targetUrl)
+	bytesData, err := common.Request(targetURL)
 	if err != nil {
 		return nil, err
 	}
 
 	var data proxyScrapeResponse
+
 	err = json.Unmarshal(bytesData, &data)
 	if err != nil {
 		return nil, err
 	}
 
-	slog.Info("proxy scrape", slog.Int("total records", data.TotalRecords))
+	slog.Info("proxy scrape",
+		slog.Int("got records", data.ShownRecords),
+		slog.Int("total records", data.TotalRecords),
+	)
 
 	return &data, nil
 }
 
 func WorkingProxies() ([]*ProxyScrapeProxy, error) {
 
-	data, err := getProxyScrapeData()
+	data, err := proxyScrapeJSON()
 	if err != nil {
 		return nil, fmt.Errorf("could not get proxy data: %w", err)
 	}
 
 	var workingChan = make(chan *ProxyScrapeProxy, 100)
+
 	var discarded = 0
 
 	waitGroup := sync.WaitGroup{}
@@ -46,7 +51,7 @@ func WorkingProxies() ([]*ProxyScrapeProxy, error) {
 			continue
 		}
 
-		if proxy.Protocol == "socks5" || proxy.Protocol == "socks4" {
+		if proxy.Protocol == common.ProtocolSocks5 || proxy.Protocol == common.ProtocolSocks4 {
 
 			waitGroup.Add(1)
 			go func() {
@@ -60,7 +65,7 @@ func WorkingProxies() ([]*ProxyScrapeProxy, error) {
 			}()
 		} else {
 			slog.Warn(
-				"[proxy scrape] protocol not supoorted",
+				"[proxy scrape] protocol not supported",
 				slog.String("protocol", proxy.Protocol),
 			)
 		}
@@ -75,6 +80,13 @@ func WorkingProxies() ([]*ProxyScrapeProxy, error) {
 	for item := range workingChan {
 		working = append(working, item)
 	}
+
+	slog.Info(
+		"working proxies",
+		slog.Int("len", len(working)),
+		slog.Int("discarded", discarded),
+		slog.Int("total", len(data.Proxies)),
+	)
 
 	return working, nil
 }
