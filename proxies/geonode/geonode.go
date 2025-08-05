@@ -29,14 +29,22 @@ func (g *Proxy) CreateClient() (*http.Client, error) {
 	return nil, fmt.Errorf("no valid protocol found")
 }
 
-func pageURL(page uint8) string {
-	return fmt.Sprintf(
-		"https://proxylist.geonode.com/api/proxy-list?lpage=%d&limit=500&sort_by=lastChecked&sort_type=desc",
-		page,
-	)
+func pageURL(page uint8, country string) string {
+	if country == "" {
+		return fmt.Sprintf(
+			"https://proxylist.geonode.com/api/proxy-list?lpage=%d&limit=500&sort_by=lastChecked&sort_type=desc",
+			page,
+		)
+	} else {
+		return fmt.Sprintf(
+			"https://proxylist.geonode.com/api/proxy-list?lpage=%d&country=%s&limit=500&sort_by=lastChecked&sort_type=desc",
+			page,
+			country,
+		)
+	}
 }
 
-func collectProxies() (map[string][]Proxy, error) {
+func collectProxies(country string) (map[string][]Proxy, error) {
 
 	var currentPage uint8 = 1
 	var count = 0
@@ -45,7 +53,7 @@ func collectProxies() (map[string][]Proxy, error) {
 	results := make(map[string][]Proxy, 3)
 
 	for {
-		page := pageURL(currentPage)
+		page := pageURL(currentPage, country)
 
 		byteData, err := common.Request(page)
 		if err != nil {
@@ -85,11 +93,7 @@ func collectProxies() (map[string][]Proxy, error) {
 	return results, nil
 }
 
-func WorkingProxies() (<-chan *Proxy, error) {
-	proxies, err := collectProxies()
-	if err != nil {
-		return nil, fmt.Errorf("geonodes collect proxy: %w", err)
-	}
+func checkProxies(proxies map[string][]Proxy) (<-chan *Proxy, error) {
 
 	workingChan := make(chan *Proxy, 100)
 
@@ -119,4 +123,21 @@ func WorkingProxies() (<-chan *Proxy, error) {
 	}()
 
 	return workingChan, nil
+}
+
+func WorkingProxiesCountry(country string) (<-chan *Proxy, error) {
+	proxies, err := collectProxies(country)
+	if err != nil {
+		return nil, fmt.Errorf("geonodes collect proxy: %w", err)
+	}
+
+	return checkProxies(proxies)
+}
+
+func WorkingProxies() (<-chan *Proxy, error) {
+	proxies, err := collectProxies("")
+	if err != nil {
+		return nil, fmt.Errorf("geonodes collect proxy: %w", err)
+	}
+	return checkProxies(proxies)
 }
