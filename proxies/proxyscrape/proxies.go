@@ -32,7 +32,7 @@ func proxyScrapeJSON() (*proxyScrapeResponse, error) {
 	return &data, nil
 }
 
-func WorkingProxies() ([]*Proxy, error) {
+func WorkingProxies() (<-chan *Proxy, error) {
 
 	data, err := proxyScrapeJSON()
 	if err != nil {
@@ -41,53 +41,36 @@ func WorkingProxies() ([]*Proxy, error) {
 
 	var workingChan = make(chan *Proxy, 100)
 
-	var discarded = 0
+	go func() {
 
-	waitGroup := sync.WaitGroup{}
+		waitGroup := sync.WaitGroup{}
 
-	for _, proxy := range data.Proxies {
+		for _, proxy := range data.Proxies {
 
-		if !proxy.Ssl {
-			discarded += 1
-			continue
+			if proxy.Protocol == common.ProtocolSocks5 || proxy.Protocol == common.ProtocolSocks4 {
+
+				waitGroup.Add(1)
+				go func() {
+					defer waitGroup.Done()
+
+					ok, _ := proxy.TestProxy()
+
+					if ok {
+						workingChan <- &proxy
+					}
+				}()
+			} else {
+				slog.Warn(
+					"[proxy scrape] protocol not supported",
+					slog.String("protocol", proxy.Protocol),
+				)
+			}
 		}
 
-		if proxy.Protocol == common.ProtocolSocks5 || proxy.Protocol == common.ProtocolSocks4 {
+		waitGroup.Wait()
 
-			waitGroup.Add(1)
-			go func() {
-				defer waitGroup.Done()
+		close(workingChan)
+	}()
 
-				ok, _ := proxy.TestProxy()
-
-				if ok {
-					workingChan <- &proxy
-				}
-			}()
-		} else {
-			slog.Warn(
-				"[proxy scrape] protocol not supported",
-				slog.String("protocol", proxy.Protocol),
-			)
-		}
-	}
-
-	waitGroup.Wait()
-
-	close(workingChan)
-
-	working := make([]*Proxy, 0)
-
-	for item := range workingChan {
-		working = append(working, item)
-	}
-
-	slog.Info(
-		"working proxies",
-		slog.Int("len", len(working)),
-		slog.Int("discarded", discarded),
-		slog.Int("total", len(data.Proxies)),
-	)
-
-	return working, nil
+	return workingChan, nil
 }

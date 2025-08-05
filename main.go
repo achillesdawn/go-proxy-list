@@ -8,6 +8,7 @@ import (
 )
 
 func main() {
+	// proxy is a <-chan of proxies
 	proxies, err := proxyscrape.WorkingProxies()
 	if err != nil {
 		// handle error
@@ -15,7 +16,8 @@ func main() {
 		panic(err)
 	}
 
-	for _, proxy := range proxies {
+	// we can iterate over the channel to get proxies as they come after being tested
+	for proxy := range proxies {
 		// client is of type *http.Client, already configured with proxy information
 		// it can be used simply to execute requests
 		// client.Do(request)
