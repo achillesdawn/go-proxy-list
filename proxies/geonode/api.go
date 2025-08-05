@@ -9,7 +9,7 @@ import (
 )
 
 type (
-	GeonodeProxy struct {
+	Proxy struct {
 		ID                 string    `json:"_id"`
 		IP                 string    `json:"ip"`
 		AnonymityLevel     string    `json:"anonymityLevel"`
@@ -35,14 +35,14 @@ type (
 	}
 
 	geonodeResponse struct {
-		Data  []GeonodeProxy `json:"data"`
-		Total int            `json:"total"`
-		Page  int            `json:"page"`
-		Limit int            `json:"limit"`
+		Data  []Proxy `json:"data"`
+		Total int     `json:"total"`
+		Page  int     `json:"page"`
+		Limit int     `json:"limit"`
 	}
 )
 
-func (g *GeonodeProxy) CreateSocks5Client() *http.Client {
+func (g *Proxy) CreateSocks5Client() *http.Client {
 	proxyUrl := socksUrl(common.ProtocolSocks5, g.IP, g.Port)
 
 	URL, err := url.Parse(proxyUrl)
@@ -53,13 +53,13 @@ func (g *GeonodeProxy) CreateSocks5Client() *http.Client {
 	return common.Socks5Client(URL)
 }
 
-func (g *GeonodeProxy) CreateSocks4Client() *http.Client {
+func (g *Proxy) CreateSocks4Client() *http.Client {
 	proxyUrl := socksUrl(common.ProtocolSocks4, g.IP, g.Port)
 
 	return common.Socks4Client(proxyUrl)
 }
 
-func (g *GeonodeProxy) TestProxy() (bool, error) {
+func (g *Proxy) TestProxy() (bool, error) {
 
 	// geonodes proxy has an array of protocols
 	for _, protocol := range g.Protocols {

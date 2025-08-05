@@ -32,7 +32,7 @@ type (
 		Zip           string  `json:"zip,omitempty"`
 	}
 
-	ProxyScrapeProxy struct {
+	Proxy struct {
 		Alive          bool              `json:"alive,omitempty"`
 		AliveSince     float64           `json:"alive_since,omitempty"`
 		Anonimity      string            `json:"anonimity,omitempty"`
@@ -52,16 +52,16 @@ type (
 	}
 
 	proxyScrapeResponse struct {
-		ShownRecords int                `json:"shown_records,omitempty"`
-		TotalRecords int                `json:"total_records,omitempty"`
-		Limit        int                `json:"limit,omitempty"`
-		Skip         int                `json:"skip,omitempty"`
-		Nextpage     bool               `json:"nextpage,omitempty"`
-		Proxies      []ProxyScrapeProxy `json:"proxies,omitempty"`
+		ShownRecords int     `json:"shown_records,omitempty"`
+		TotalRecords int     `json:"total_records,omitempty"`
+		Limit        int     `json:"limit,omitempty"`
+		Skip         int     `json:"skip,omitempty"`
+		Nextpage     bool    `json:"nextpage,omitempty"`
+		Proxies      []Proxy `json:"proxies,omitempty"`
 	}
 )
 
-func (p *ProxyScrapeProxy) CreateClient() *http.Client {
+func (p *Proxy) CreateClient() *http.Client {
 	var client *http.Client
 
 	switch p.Protocol {
@@ -76,7 +76,7 @@ func (p *ProxyScrapeProxy) CreateClient() *http.Client {
 	return client
 }
 
-func (p *ProxyScrapeProxy) CreateSocks5Client() *http.Client {
+func (p *Proxy) CreateSocks5Client() *http.Client {
 	URL, err := url.Parse(p.Proxy)
 	if err != nil {
 		panic(err)
@@ -84,11 +84,11 @@ func (p *ProxyScrapeProxy) CreateSocks5Client() *http.Client {
 	return common.Socks5Client(URL)
 }
 
-func (p *ProxyScrapeProxy) CreateSocks4Client() *http.Client {
+func (p *Proxy) CreateSocks4Client() *http.Client {
 	return common.Socks4Client(p.Proxy)
 }
 
-func (p *ProxyScrapeProxy) TestProxy() (bool, error) {
+func (p *Proxy) TestProxy() (bool, error) {
 
 	slog.Info(
 		"[proxy scrape] testing URL",

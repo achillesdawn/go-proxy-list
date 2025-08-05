@@ -32,14 +32,14 @@ func proxyScrapeJSON() (*proxyScrapeResponse, error) {
 	return &data, nil
 }
 
-func WorkingProxies() ([]*ProxyScrapeProxy, error) {
+func WorkingProxies() ([]*Proxy, error) {
 
 	data, err := proxyScrapeJSON()
 	if err != nil {
 		return nil, fmt.Errorf("could not get proxy data: %w", err)
 	}
 
-	var workingChan = make(chan *ProxyScrapeProxy, 100)
+	var workingChan = make(chan *Proxy, 100)
 
 	var discarded = 0
 
@@ -76,7 +76,7 @@ func WorkingProxies() ([]*ProxyScrapeProxy, error) {
 
 	close(workingChan)
 
-	working := make([]*ProxyScrapeProxy, 0)
+	working := make([]*Proxy, 0)
 
 	for item := range workingChan {
 		working = append(working, item)

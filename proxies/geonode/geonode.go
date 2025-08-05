@@ -14,7 +14,7 @@ func socksUrl(protocol, ip, port string) string {
 	return fmt.Sprintf("%s://%s:%s", protocol, ip, port)
 }
 
-func (g *GeonodeProxy) CreateClient() (*http.Client, error) {
+func (g *Proxy) CreateClient() (*http.Client, error) {
 
 	for _, protocol := range g.Protocols {
 
@@ -36,13 +36,13 @@ func pageURL(page uint8) string {
 	)
 }
 
-func collectProxies() (map[string][]GeonodeProxy, error) {
+func collectProxies() (map[string][]Proxy, error) {
 
 	var currentPage uint8 = 1
 	var count = 0
 
 	// map of protocol to proxies that work for that protocol, so 3 is the expected capacity
-	results := make(map[string][]GeonodeProxy, 3)
+	results := make(map[string][]Proxy, 3)
 
 	for {
 		page := pageURL(currentPage)
@@ -65,7 +65,7 @@ func collectProxies() (map[string][]GeonodeProxy, error) {
 				value, exists := results[protocol]
 
 				if !exists {
-					value = make([]GeonodeProxy, 0)
+					value = make([]Proxy, 0)
 				}
 
 				value = append(value, proxy)
@@ -85,48 +85,38 @@ func collectProxies() (map[string][]GeonodeProxy, error) {
 	return results, nil
 }
 
-func WorkingProxies() ([]*GeonodeProxy, error) {
+func WorkingProxies() (<-chan *Proxy, error) {
 	proxies, err := collectProxies()
 	if err != nil {
 		return nil, fmt.Errorf("geonodes collect proxy: %w", err)
 	}
 
-	workingChan := make(chan *GeonodeProxy, 100)
+	workingChan := make(chan *Proxy, 100)
 
-	waitGroup := sync.WaitGroup{}
+	go func() {
+		waitGroup := sync.WaitGroup{}
 
-	for protocol, proxyList := range proxies {
-		if protocol == common.ProtocolSocks4 || protocol == common.ProtocolSocks5 {
-			for _, proxy := range proxyList {
+		for protocol, proxyList := range proxies {
+			if protocol == common.ProtocolSocks4 || protocol == common.ProtocolSocks5 {
+				for _, proxy := range proxyList {
 
-				waitGroup.Add(1)
+					waitGroup.Add(1)
 
-				go func() {
-					defer waitGroup.Done()
+					go func() {
+						defer waitGroup.Done()
 
-					ok, _ := proxy.TestProxy()
-					if ok {
-						workingChan <- &proxy
-					}
-				}()
+						ok, _ := proxy.TestProxy()
+						if ok {
+							workingChan <- &proxy
+						}
+					}()
+				}
 			}
 		}
-	}
+		waitGroup.Wait()
 
-	waitGroup.Wait()
+		close(workingChan)
+	}()
 
-	close(workingChan)
-
-	working := make([]*GeonodeProxy, 0, 100)
-
-	for proxy := range workingChan {
-		working = append(working, proxy)
-	}
-
-	slog.Info(
-		"geonodes working proxies",
-		slog.Int("len", len(working)),
-	)
-
-	return working, nil
+	return workingChan, nil
 }

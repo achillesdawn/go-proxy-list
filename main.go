@@ -29,7 +29,7 @@ func main() {
 		panic(err)
 	}
 
-	for _, proxy := range geoproxies {
+	for proxy := range geoproxies {
 		// client is of type *http.Client, already configured with proxy information
 		// it can be used simply to execute requests
 		// client.Do(request)
