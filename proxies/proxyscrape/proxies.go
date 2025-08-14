@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-	"sync"
 
 	"github.com/achillesdawn/proxy-list/proxies/common"
 )
@@ -46,88 +45,22 @@ func proxyScrapeJSON(countries []string) (*proxyScrapeResponse, error) {
 	return &data, nil
 }
 
-func WorkingProxies() (<-chan *Proxy, error) {
+func WorkingProxies() (<-chan Proxy, func(), error) {
 
 	data, err := proxyScrapeJSON([]string{})
 	if err != nil {
-		return nil, fmt.Errorf("could not get proxy data: %w", err)
+		return nil, nil, fmt.Errorf("could not get proxy data: %w", err)
 	}
 
-	var workingChan = make(chan *Proxy, 100)
-
-	go func() {
-
-		waitGroup := sync.WaitGroup{}
-
-		for _, proxy := range data.Proxies {
-
-			if proxy.Protocol == common.ProtocolSocks5 || proxy.Protocol == common.ProtocolSocks4 {
-
-				waitGroup.Add(1)
-				go func() {
-					defer waitGroup.Done()
-
-					ok, _ := proxy.TestProxy()
-
-					if ok {
-						workingChan <- &proxy
-					}
-				}()
-			} else {
-				slog.Warn(
-					"[proxy scrape] protocol not supported",
-					slog.String("protocol", proxy.Protocol),
-				)
-			}
-		}
-
-		waitGroup.Wait()
-
-		close(workingChan)
-	}()
-
-	return workingChan, nil
+	return common.TestProxies(data.Proxies)
 }
 
-func WorkingProxiesCountries(countries []string) (<-chan *Proxy, error) {
+func WorkingProxiesCountries(countries []string) (<-chan Proxy, func(), error) {
 
 	data, err := proxyScrapeJSON(countries)
 	if err != nil {
-		return nil, fmt.Errorf("could not get proxy data: %w", err)
+		return nil, nil, fmt.Errorf("could not get proxy data: %w", err)
 	}
 
-	var workingChan = make(chan *Proxy, 100)
-
-	go func() {
-
-		waitGroup := sync.WaitGroup{}
-
-		for _, proxy := range data.Proxies {
-
-			if proxy.Protocol == common.ProtocolSocks5 || proxy.Protocol == common.ProtocolSocks4 {
-
-				waitGroup.Add(1)
-				go func() {
-					defer waitGroup.Done()
-
-					ok, _ := proxy.TestProxy()
-
-					if ok {
-						workingChan <- &proxy
-					}
-				}()
-			} else {
-				slog.Warn(
-					"[proxy scrape] protocol not supported",
-					slog.String("protocol", proxy.Protocol),
-				)
-			}
-		}
-
-		waitGroup.Wait()
-
-		close(workingChan)
-	}()
-
-	return workingChan, nil
+	return common.TestProxies(data.Proxies)
 }

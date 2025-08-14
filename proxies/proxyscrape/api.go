@@ -1,14 +1,5 @@
 package proxyscrape
 
-import (
-	"fmt"
-	"log/slog"
-	"net/http"
-	"net/url"
-
-	"github.com/achillesdawn/proxy-list/proxies/common"
-)
-
 type (
 	proxyScrapeIpData struct {
 		As            string  `json:"as,omitempty"`
@@ -60,57 +51,3 @@ type (
 		Proxies      []Proxy `json:"proxies,omitempty"`
 	}
 )
-
-func (p *Proxy) CreateClient() (*http.Client, error) {
-	var client *http.Client
-
-	switch p.Protocol {
-	case common.ProtocolSocks4:
-		client = p.createSocks4Client()
-	case common.ProtocolSocks5:
-		client = p.createSocks5Client()
-	default:
-		panic(fmt.Sprintf("protocol not supported: %s", p.Protocol))
-	}
-
-	return client, nil
-}
-
-func (p *Proxy) createSocks5Client() *http.Client {
-	URL, err := url.Parse(p.Proxy)
-	if err != nil {
-		panic(err)
-	}
-	return common.Socks5Client(URL)
-}
-
-func (p *Proxy) createSocks4Client() *http.Client {
-	return common.Socks4Client(p.Proxy)
-}
-
-func (p *Proxy) TestProxy() (bool, error) {
-
-	slog.Info(
-		"[proxy scrape] testing URL",
-		slog.String("URL", p.Proxy),
-	)
-
-	var client *http.Client
-
-	switch p.Protocol {
-	case common.ProtocolSocks4:
-		client = p.createSocks4Client()
-	case common.ProtocolSocks5:
-		client = p.createSocks5Client()
-	default:
-		return false, fmt.Errorf("expecting protocol either socks4 or socks5")
-	}
-
-	ok, _ := common.TestProxy(client, p.Ip)
-
-	if ok {
-		return true, nil
-	} else {
-		return false, nil
-	}
-}

@@ -9,7 +9,7 @@ import (
 
 func main() {
 	// proxy is a <-chan of proxies
-	proxies, err := proxyscrape.WorkingProxies()
+	proxies, cancel, err := proxyscrape.WorkingProxies()
 	if err != nil {
 		// handle error
 		// for now, we shall panic
@@ -28,9 +28,11 @@ func main() {
 		}
 
 		_ = client
+
+		cancel()
 	}
 
-	geoproxies, err := geonode.WorkingProxies()
+	geoproxies, cancel, err := geonode.WorkingProxies()
 	if err != nil {
 		panic(err)
 	}
@@ -46,6 +48,8 @@ func main() {
 		}
 
 		_ = client
+
+		cancel()
 
 	}
 }

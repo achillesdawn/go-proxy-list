@@ -21,11 +21,11 @@ func TestGetProxies(t *testing.T) {
 }
 
 func TestWorkingProxies(t *testing.T) {
-	proxies, err := WorkingProxies()
+	proxies, done, err := WorkingProxies()
 	require.NoError(t, err)
 
 	for proxy := range proxies {
 		fmt.Println(proxy.Protocol, proxy.Geolocation)
-
+		done()
 	}
 }

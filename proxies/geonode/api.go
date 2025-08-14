@@ -1,11 +1,7 @@
 package geonode
 
 import (
-	"net/http"
-	"net/url"
 	"time"
-
-	"github.com/achillesdawn/proxy-list/proxies/common"
 )
 
 type (
@@ -42,53 +38,6 @@ type (
 	}
 )
 
-func (g *Proxy) createSocks5Client() *http.Client {
-	proxyUrl := socksUrl(common.ProtocolSocks5, g.IP, g.Port)
-
-	URL, err := url.Parse(proxyUrl)
-	if err != nil {
-		panic(err)
-	}
-
-	return common.Socks5Client(URL)
-}
-
-func (g *Proxy) createSocks4Client() *http.Client {
-	proxyUrl := socksUrl(common.ProtocolSocks4, g.IP, g.Port)
-
-	return common.Socks4Client(proxyUrl)
-}
-
-func (g *Proxy) TestProxy() (bool, error) {
-
-	// geonodes proxy has an array of protocols
-	for _, protocol := range g.Protocols {
-		switch protocol {
-		case common.ProtocolSocks5:
-			c := g.createSocks5Client()
-
-			ok, err := common.TestProxy(c, g.IP)
-			if err != nil {
-				return false, err
-			}
-
-			if ok {
-				return true, nil
-			}
-
-		case common.ProtocolSocks4:
-			c := g.createSocks4Client()
-
-			ok, err := common.TestProxy(c, g.IP)
-			if err != nil {
-				return false, err
-			}
-
-			if ok {
-				return true, nil
-			}
-		}
-	}
-
-	return false, nil
+func (p *Proxy) ProxyIP() string {
+	return p.IP
 }

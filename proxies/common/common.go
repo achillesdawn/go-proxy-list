@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"h12.io/socks"
@@ -15,6 +17,9 @@ import (
 
 type Clientable interface {
 	CreateClient() (*http.Client, error)
+	GetIP() string
+	GetProtocol() string
+	GetAddress() string
 }
 
 type protocol = string
@@ -106,4 +111,64 @@ func Request(URL string) ([]byte, error) {
 	}
 
 	return b, nil
+}
+
+func TestProxies[T Clientable](proxies []T) (<-chan T, func(), error) {
+
+	var workingChan = make(chan T, 100)
+	var done = make(chan struct{})
+
+	parentCtx, cancelAll := context.WithCancel(context.Background())
+
+	go func() {
+		defer cancelAll()
+
+		<-done
+	}()
+
+	go func() {
+
+		var waitGroup sync.WaitGroup
+
+		for _, proxy := range proxies {
+
+			client, err := proxy.CreateClient()
+			if err != nil {
+				panic(err)
+			}
+
+			waitGroup.Add(1)
+
+			go func() {
+				defer waitGroup.Done()
+
+				ctx, cancel := context.WithTimeout(
+					parentCtx,
+					time.Second*60,
+				)
+
+				defer cancel()
+
+				ok, err := TestProxy(ctx, client, proxy.GetIP())
+				if errors.Is(err, context.Canceled) {
+					return
+				} else if err != nil {
+					slog.Error("test fail",
+						slog.String("protocol", proxy.GetProtocol()),
+						slog.String("address", proxy.GetAddress()),
+						slog.String("error", err.Error()))
+				}
+
+				if ok {
+					workingChan <- proxy
+				}
+			}()
+		}
+
+		waitGroup.Wait()
+
+		close(workingChan)
+	}()
+
+	return workingChan, func() { done <- struct{}{} }, nil
 }

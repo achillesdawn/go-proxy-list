@@ -4,30 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"net/http"
-	"sync"
 
 	"github.com/achillesdawn/proxy-list/proxies/common"
 )
-
-func socksUrl(protocol, ip, port string) string {
-	return fmt.Sprintf("%s://%s:%s", protocol, ip, port)
-}
-
-func (g *Proxy) CreateClient() (*http.Client, error) {
-
-	for _, protocol := range g.Protocols {
-
-		switch protocol {
-		case common.ProtocolSocks4:
-			return g.createSocks4Client(), nil
-		case common.ProtocolSocks5:
-			return g.createSocks5Client(), nil
-		}
-	}
-
-	return nil, fmt.Errorf("no valid protocol found")
-}
 
 func pageURL(page uint8, country string) string {
 	if country == "" {
@@ -93,51 +72,30 @@ func collectProxies(country string) (map[string][]Proxy, error) {
 	return results, nil
 }
 
-func checkProxies(proxies map[string][]Proxy) (<-chan *Proxy, error) {
+func checkProxies(proxies map[string][]Proxy) (<-chan Proxy, func(), error) {
 
-	workingChan := make(chan *Proxy, 100)
+	proxyList := make([]Proxy, 0)
 
-	go func() {
-		waitGroup := sync.WaitGroup{}
+	for _, value := range proxies {
+		proxyList = append(proxyList, value...)
+	}
 
-		for protocol, proxyList := range proxies {
-			if protocol == common.ProtocolSocks4 || protocol == common.ProtocolSocks5 {
-				for _, proxy := range proxyList {
-
-					waitGroup.Add(1)
-
-					go func() {
-						defer waitGroup.Done()
-
-						ok, _ := proxy.TestProxy()
-						if ok {
-							workingChan <- &proxy
-						}
-					}()
-				}
-			}
-		}
-		waitGroup.Wait()
-
-		close(workingChan)
-	}()
-
-	return workingChan, nil
+	return common.TestProxies(proxyList)
 }
 
-func WorkingProxiesCountry(country string) (<-chan *Proxy, error) {
+func WorkingProxiesCountry(country string) (<-chan Proxy, func(), error) {
 	proxies, err := collectProxies(country)
 	if err != nil {
-		return nil, fmt.Errorf("geonodes collect proxy: %w", err)
+		return nil, nil, fmt.Errorf("geonodes collect proxy: %w", err)
 	}
 
 	return checkProxies(proxies)
 }
 
-func WorkingProxies() (<-chan *Proxy, error) {
+func WorkingProxies() (<-chan Proxy, func(), error) {
 	proxies, err := collectProxies("")
 	if err != nil {
-		return nil, fmt.Errorf("geonodes collect proxy: %w", err)
+		return nil, nil, fmt.Errorf("geonodes collect proxy: %w", err)
 	}
 	return checkProxies(proxies)
 }

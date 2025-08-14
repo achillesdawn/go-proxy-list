@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,8 +12,14 @@ type httpbinIp struct {
 	Origin string `json:"origin,omitempty"`
 }
 
-func TestProxy(client *http.Client, expectedIP string) (bool, error) {
-	req, err := http.NewRequest(http.MethodGet, "https://httpbin.org/ip", nil)
+func TestProxy(ctx context.Context, client *http.Client, expectedIP string) (bool, error) {
+
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		"https://httpbin.org/ip",
+		nil,
+	)
 	if err != nil {
 		return false, fmt.Errorf("could not create test proxy request: %w", err)
 	}
