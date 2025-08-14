@@ -20,9 +20,9 @@ func (g *Proxy) CreateClient() (*http.Client, error) {
 
 		switch protocol {
 		case common.ProtocolSocks4:
-			return g.CreateSocks4Client(), nil
+			return g.createSocks4Client(), nil
 		case common.ProtocolSocks5:
-			return g.CreateSocks5Client(), nil
+			return g.createSocks5Client(), nil
 		}
 	}
 

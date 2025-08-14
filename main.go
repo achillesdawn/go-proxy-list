@@ -21,7 +21,11 @@ func main() {
 		// client is of type *http.Client, already configured with proxy information
 		// it can be used simply to execute requests
 		// client.Do(request)
-		client := proxy.CreateClient()
+		client, err := proxy.CreateClient()
+		if err != nil {
+			slog.Error("creating client", "error", err)
+			continue
+		}
 
 		_ = client
 	}

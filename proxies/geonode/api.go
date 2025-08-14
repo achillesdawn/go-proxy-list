@@ -42,7 +42,7 @@ type (
 	}
 )
 
-func (g *Proxy) CreateSocks5Client() *http.Client {
+func (g *Proxy) createSocks5Client() *http.Client {
 	proxyUrl := socksUrl(common.ProtocolSocks5, g.IP, g.Port)
 
 	URL, err := url.Parse(proxyUrl)
@@ -53,7 +53,7 @@ func (g *Proxy) CreateSocks5Client() *http.Client {
 	return common.Socks5Client(URL)
 }
 
-func (g *Proxy) CreateSocks4Client() *http.Client {
+func (g *Proxy) createSocks4Client() *http.Client {
 	proxyUrl := socksUrl(common.ProtocolSocks4, g.IP, g.Port)
 
 	return common.Socks4Client(proxyUrl)
@@ -65,7 +65,7 @@ func (g *Proxy) TestProxy() (bool, error) {
 	for _, protocol := range g.Protocols {
 		switch protocol {
 		case common.ProtocolSocks5:
-			c := g.CreateSocks5Client()
+			c := g.createSocks5Client()
 
 			ok, err := common.TestProxy(c, g.IP)
 			if err != nil {
@@ -77,7 +77,7 @@ func (g *Proxy) TestProxy() (bool, error) {
 			}
 
 		case common.ProtocolSocks4:
-			c := g.CreateSocks4Client()
+			c := g.createSocks4Client()
 
 			ok, err := common.TestProxy(c, g.IP)
 			if err != nil {

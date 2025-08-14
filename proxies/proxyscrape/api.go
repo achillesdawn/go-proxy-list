@@ -61,22 +61,22 @@ type (
 	}
 )
 
-func (p *Proxy) CreateClient() *http.Client {
+func (p *Proxy) CreateClient() (*http.Client, error) {
 	var client *http.Client
 
 	switch p.Protocol {
 	case common.ProtocolSocks4:
-		client = p.CreateSocks4Client()
+		client = p.createSocks4Client()
 	case common.ProtocolSocks5:
-		client = p.CreateSocks5Client()
+		client = p.createSocks5Client()
 	default:
 		panic(fmt.Sprintf("protocol not supported: %s", p.Protocol))
 	}
 
-	return client
+	return client, nil
 }
 
-func (p *Proxy) CreateSocks5Client() *http.Client {
+func (p *Proxy) createSocks5Client() *http.Client {
 	URL, err := url.Parse(p.Proxy)
 	if err != nil {
 		panic(err)
@@ -84,7 +84,7 @@ func (p *Proxy) CreateSocks5Client() *http.Client {
 	return common.Socks5Client(URL)
 }
 
-func (p *Proxy) CreateSocks4Client() *http.Client {
+func (p *Proxy) createSocks4Client() *http.Client {
 	return common.Socks4Client(p.Proxy)
 }
 
@@ -99,9 +99,9 @@ func (p *Proxy) TestProxy() (bool, error) {
 
 	switch p.Protocol {
 	case common.ProtocolSocks4:
-		client = p.CreateSocks4Client()
+		client = p.createSocks4Client()
 	case common.ProtocolSocks5:
-		client = p.CreateSocks5Client()
+		client = p.createSocks5Client()
 	default:
 		return false, fmt.Errorf("expecting protocol either socks4 or socks5")
 	}
